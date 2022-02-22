@@ -1382,6 +1382,17 @@ pub fn osd_safe_to_destroy(cluster_handle: &Rados, osd_id: u64) -> bool {
     }
 }
 
+pub fn osd_safe_to_stop(cluster_handle: &Rados, osd_ids: &Vec<u64>) -> bool {
+    let cmd = json!({
+        "prefix": "osd ok-to-stop",
+        "ids": osd_ids.iter().map(|i| i.to_string()).collect::<Vec<String>>()
+    });
+    match cluster_handle.ceph_mon_command_without_data(&cmd) {
+        Err(_) => false,
+        Ok(_) => true,
+    }
+}
+
 /// count ceph-mgr daemons by metadata field property
 pub fn mgr_count_metadata(
     cluster_handle: &Rados,

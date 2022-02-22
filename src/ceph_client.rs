@@ -263,6 +263,11 @@ impl CephClient {
         cmd::osd_safe_to_destroy(&self.rados_t, osd_id)
     }
 
+    /// check if it is safe to stop some set of osd ids without reducing immediate data availability
+    pub fn osd_safe_to_stop(&self, osd_ids: &Vec<u64>) -> bool {
+        cmd::osd_safe_to_stop(&self.rados_t, osd_ids)
+    }
+
     // Luminous + only
 
     pub fn mgr_dump(&self) -> Result<cmd::MgrDump, RadosError> {
