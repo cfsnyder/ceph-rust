@@ -323,11 +323,21 @@ pub enum HealthStatus {
 
 #[derive(Deserialize, Debug)]
 pub struct ClusterHealth {
-    pub health: Health,
-    pub timechecks: TimeChecks,
-    pub summary: Vec<String>,
-    pub overall_status: HealthStatus,
-    pub detail: Vec<String>,
+    pub status: HealthStatus,
+    pub checks: HashMap<String, HealthCheck>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct HealthCheck {
+    pub severity: HealthStatus,
+    pub muted: bool,
+    pub summary: HealthCheckSummary,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct HealthCheckSummary {
+    pub message: String,
+    pub count: u64,
 }
 
 #[derive(Deserialize, Debug)]

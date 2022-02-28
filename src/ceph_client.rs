@@ -10,6 +10,7 @@ use std::{ptr, str};
 
 use crate::error::RadosError;
 use crate::{CephVersion, MonCommand, OsdOption, PoolOption};
+use crate::cmd::ClusterHealth;
 
 /// A CephClient is a struct that handles communicating with Ceph
 /// in a nicer, Rustier way
@@ -186,6 +187,10 @@ impl CephClient {
             Some(res) => Ok(res.into()),
             None => Err(RadosError::Error("No response from ceph for status".into())),
         }
+    }
+
+    pub fn health(&self) -> Result<ClusterHealth, RadosError> {
+        Ok(cmd::cluster_health(&self.rados_t)?)
     }
 
     /// List all the monitors in the cluster and their current rank
