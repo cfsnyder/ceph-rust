@@ -239,11 +239,24 @@ pub enum PgStat {
     },
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub struct OrchPsEntry {
+    pub container_id:  String,
+    pub created: String,
+    pub daemon_id: String,
+    pub daemon_name: String,
+    pub daemon_type: String,
+    pub hostname: String,
+    pub last_refresh: String,
+    pub service_name: String,
+    pub status_desc: String,
+    pub version: String,
+}
+
 #[derive(Deserialize, Debug)]
 pub struct MgrStandby {
     pub gid: u64,
     pub name: String,
-    pub available_modules: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -255,7 +268,6 @@ pub struct MgrDump {
     pub available: bool,
     pub standbys: Vec<MgrStandby>,
     pub modules: Vec<String>,
-    pub available_modules: Vec<String>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -1401,6 +1413,19 @@ pub fn osd_safe_to_stop(cluster_handle: &Rados, osd_ids: &Vec<u64>) -> bool {
         Err(_) => false,
         Ok(_) => true,
     }
+}
+
+pub fn orch_ps(cluster_handle: &Rados, refresh: bool, hostname: Option<String>) -> RadosResult<Vec<OrchPsEntry>> {
+    let cmd = json!({
+        "prefix": "orch ps",
+        "target": ["mon-mgr"],
+        "format": "json",
+        "refresh": refresh,
+        "hostname": hostname,
+    });
+    let result = cluster_handle.ceph_mon_command_without_data(&cmd)?;
+    let return_data = String::from_utf8(result.0)?;
+    Ok(serde_json::from_str(&return_data)?)
 }
 
 /// count ceph-mgr daemons by metadata field property
