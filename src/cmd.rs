@@ -1495,7 +1495,7 @@ pub fn pg_stat(cluster_handle: &Rados) -> RadosResult<PgStat> {
 }
 
 pub fn pg_dump_summary(cluster_handle: &Rados) -> RadosResult<PgDumpSummary> {
-    let cmd = json!({ "prefix": "pg dump summary", "format": "json"});
+    let cmd = json!({ "prefix": "pg dump", "dump_components": ["summary"], "format": "json"});
     let result = cluster_handle.ceph_mon_command_without_data(&cmd)?;
     let return_data = String::from_utf8(result.0)?;
     Ok(serde_json::from_str(&return_data)?)
