@@ -227,6 +227,35 @@ pub struct PgSummary {
 }
 
 #[derive(Deserialize, Debug, Clone)]
+pub struct PgDumpSummary {
+    pub pg_ready: bool,
+    pub pg_map: PgMap,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct PgMap {
+    pub version: u64,
+    pub stamp: String,
+    pub last_osdmap_epoch: u64,
+    pub last_pg_scan: u64,
+    pub pg_stats_sum: PgStatsSum,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct PgStatsSum {
+    pub stat_sum: StatSum,
+}
+
+#[derive(Deserialize, Debug, Clone)]
+pub struct StatSum {
+    pub num_objects: u64,
+    pub num_objects_degraded: u64,
+    pub num_objects_misplaced: u64,
+    pub num_objects_missing: u64,
+    pub num_objects_missing_on_primary: u64,
+}
+
+#[derive(Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum PgStat {
     Wrapped {
@@ -241,7 +270,7 @@ pub enum PgStat {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct OrchPsEntry {
-    pub container_id:  String,
+    pub container_id: String,
     pub created: String,
     pub daemon_id: String,
     pub daemon_name: String,
@@ -1415,7 +1444,11 @@ pub fn osd_safe_to_stop(cluster_handle: &Rados, osd_ids: &Vec<u64>) -> bool {
     }
 }
 
-pub fn orch_ps(cluster_handle: &Rados, refresh: bool, hostname: Option<String>) -> RadosResult<Vec<OrchPsEntry>> {
+pub fn orch_ps(
+    cluster_handle: &Rados,
+    refresh: bool,
+    hostname: Option<String>,
+) -> RadosResult<Vec<OrchPsEntry>> {
     let cmd = json!({
         "prefix": "orch ps",
         "target": ["mon-mgr"],
@@ -1456,6 +1489,13 @@ pub fn mgr_versions(cluster_handle: &Rados) -> RadosResult<HashMap<String, u64>>
 
 pub fn pg_stat(cluster_handle: &Rados) -> RadosResult<PgStat> {
     let cmd = json!({ "prefix": "pg stat", "format": "json"});
+    let result = cluster_handle.ceph_mon_command_without_data(&cmd)?;
+    let return_data = String::from_utf8(result.0)?;
+    Ok(serde_json::from_str(&return_data)?)
+}
+
+pub fn pg_dump_summary(cluster_handle: &Rados) -> RadosResult<PgDumpSummary> {
+    let cmd = json!({ "prefix": "pg dump summary", "format": "json"});
     let result = cluster_handle.ceph_mon_command_without_data(&cmd)?;
     let return_data = String::from_utf8(result.0)?;
     Ok(serde_json::from_str(&return_data)?)

@@ -8,9 +8,9 @@ use libc::c_char;
 use std::ffi::CString;
 use std::{ptr, str};
 
+use crate::cmd::{ClusterHealth, OrchPsEntry};
 use crate::error::RadosError;
 use crate::{CephVersion, MonCommand, OsdOption, PoolOption};
-use crate::cmd::ClusterHealth;
 
 /// A CephClient is a struct that handles communicating with Ceph
 /// in a nicer, Rustier way
@@ -193,6 +193,10 @@ impl CephClient {
         Ok(cmd::cluster_health(&self.rados_t)?)
     }
 
+    pub fn pg_dump_summary(&self) -> Result<cmd::PgDumpSummary, RadosError> {
+        Ok(cmd::pg_dump_summary(&self.rados_t)?)
+    }
+
     /// List all the monitors in the cluster and their current rank
     pub fn mon_dump(&self) -> Result<cmd::MonDump, RadosError> {
         Ok(cmd::mon_dump(&self.rados_t)?)
@@ -271,6 +275,14 @@ impl CephClient {
     /// check if it is safe to stop some set of osd ids without reducing immediate data availability
     pub fn osd_safe_to_stop(&self, osd_ids: &Vec<u64>) -> bool {
         cmd::osd_safe_to_stop(&self.rados_t, osd_ids)
+    }
+
+    pub fn orch_ps(
+        &self,
+        refresh: bool,
+        host_name: Option<String>,
+    ) -> Result<Vec<OrchPsEntry>, RadosError> {
+        cmd::orch_ps(&self.rados_t, refresh, host_name)
     }
 
     // Luminous + only
