@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use crate::ceph::{connect_to_ceph, Rados};
-use crate::cmd;
+use crate::ceph::{connect_to_ceph, ConnectionConfig, Rados};
+use crate::cmd::{self, CephUser};
 use crate::rados;
 
 use libc::c_char;
@@ -47,7 +47,41 @@ impl CephClient {
         user_id: T1,
         config_file: T2,
     ) -> Result<CephClient, RadosError> {
-        let rados_t = match connect_to_ceph(&user_id.as_ref(), &config_file.as_ref()) {
+        let rados_t = match connect_to_ceph(
+            &user_id.as_ref(),
+            ConnectionConfig::File {
+                path: config_file.as_ref().to_string(),
+            },
+        ) {
+            Ok(rados_t) => rados_t,
+            Err(e) => return Err(e),
+        };
+        let version: CephVersion = match cmd::version(&rados_t)?.parse() {
+            Ok(v) => v,
+            Err(e) => return Err(e),
+        };
+
+        Ok(CephClient {
+            rados_t,
+            simulate: false,
+            version,
+        })
+    }
+
+    pub fn new_from_params(
+        user_id: impl AsRef<str>,
+        key: impl AsRef<str>,
+        fsid: impl AsRef<str>,
+        mon_hosts: Vec<String>,
+    ) -> Result<CephClient, RadosError> {
+        let rados_t = match connect_to_ceph(
+            &user_id.as_ref(),
+            ConnectionConfig::Params {
+                fsid: fsid.as_ref().to_string(),
+                mon_hosts,
+                key: key.as_ref().to_string(),
+            },
+        ) {
             Ok(rados_t) => rados_t,
             Err(e) => return Err(e),
         };
@@ -220,6 +254,10 @@ impl CephClient {
         Ok(cmd::auth_del(&self.rados_t, osd_id, self.simulate)?)
     }
 
+    pub fn auth_rm(&self, client: &str) -> Result<(), RadosError> {
+        Ok(cmd::auth_rm(&self.rados_t, client, self.simulate)?)
+    }
+
     pub fn osd_rm(&self, osd_id: u64) -> Result<(), RadosError> {
         Ok(cmd::osd_rm(&self.rados_t, osd_id, self.simulate)?)
     }
@@ -242,6 +280,15 @@ impl CephClient {
     /// depending on the type of client so I went with string.
     pub fn auth_get_key(&self, client_type: &str, id: &str) -> Result<String, RadosError> {
         Ok(cmd::auth_get_key(&self.rados_t, client_type, id)?)
+    }
+
+    /// Get or create a ceph client user.
+    pub fn auth_get_or_create(
+        &self,
+        client: &str,
+        caps: HashMap<String, String>,
+    ) -> Result<CephUser, RadosError> {
+        Ok(cmd::auth_get_or_create(&self.rados_t, client, caps)?)
     }
 
     // ceph osd crush add {id-or-name} {weight}  [{bucket-type}={bucket-name} ...]

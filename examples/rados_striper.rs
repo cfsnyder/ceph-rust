@@ -6,12 +6,16 @@ fn main() {}
 
 #[cfg(feature = "rados_striper")]
 fn main() {
+    use ceph::ceph::ConnectionConfig;
+
     let user_id = "admin";
     let config_file = env::var("CEPH_CONF").unwrap_or("/etc/ceph/ceph.conf".to_string());
     let pool_name = "ceph-rust-test";
 
     println!("Connecting to ceph");
-    let cluster = ceph_helpers::connect_to_ceph(user_id, &config_file).unwrap();
+    let cluster =
+        ceph_helpers::connect_to_ceph(user_id, ConnectionConfig::File { path: config_file })
+            .unwrap();
 
     println!("Creating pool {}", pool_name);
     match cluster.rados_create_pool(pool_name) {

@@ -44,6 +44,13 @@ pub struct CrushTree {
     pub stray: Vec<String>,
 }
 
+#[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct CephUser {
+    pub entity: String,
+    pub key: String,
+    pub caps: HashMap<String, String>,
+}
+
 #[derive(Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum Mem {
@@ -1156,6 +1163,18 @@ pub fn osd_pool_quota_get(cluster_handle: &Rados, pool: &str) -> RadosResult<u64
     }
 }
 
+pub fn auth_rm(cluster_handle: &Rados, client_id: &str, simulate: bool) -> RadosResult<()> {
+    let cmd = json!({
+        "prefix": "auth rm",
+        "entity": client_id,
+    });
+
+    if !simulate {
+        cluster_handle.ceph_mon_command_without_data(&cmd)?;
+    }
+    Ok(())
+}
+
 pub fn auth_del(cluster_handle: &Rados, osd_id: u64, simulate: bool) -> RadosResult<()> {
     let cmd = json!({
         "prefix": "auth del",
@@ -1253,6 +1272,23 @@ pub fn auth_get_key(cluster_handle: &Rados, client_type: &str, id: &str) -> Rado
             return_data,
         ))),
     }
+}
+
+pub fn auth_get_or_create(
+    cluster_handle: &Rados,
+    client: &str,
+    caps: HashMap<String, String>,
+) -> RadosResult<CephUser> {
+    let cmd = json!({
+        "prefix": "auth get-or-create",
+        "entity": client,
+        "caps": caps.into_iter().flat_map(|(k, v)| [k, v]).collect::<Vec<_>>(),
+        "format": "json",
+    });
+
+    let result = cluster_handle.ceph_mon_command_without_data(&cmd)?;
+    let mut keys = serde_json::from_slice::<Vec<CephUser>>(&result.0)?;
+    Ok(keys.remove(0))
 }
 
 // ceph osd crush add {id-or-name} {weight}  [{bucket-type}={bucket-name} ...]

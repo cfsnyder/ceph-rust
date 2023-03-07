@@ -52,7 +52,13 @@ fn main() {
     println!("Librados version: {:?}", rados_version);
 
     println!("Connecting to ceph");
-    let cluster = ceph_helpers::connect_to_ceph("admin", "/etc/ceph/ceph.conf").unwrap();
+    let cluster = ceph_helpers::connect_to_ceph(
+        "admin",
+        ceph_helpers::ConnectionConfig::File {
+            path: "/etc/ceph/ceph.conf".to_string(),
+        },
+    )
+    .unwrap();
     println!("Creating pool {}", pool_name);
     cluster.rados_create_pool(pool_name).unwrap();
 

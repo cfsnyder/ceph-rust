@@ -383,19 +383,65 @@ impl Drop for Rados {
     }
 }
 
+pub enum ConnectionConfig {
+    Params {
+        fsid: String,
+        mon_hosts: Vec<String>,
+        key: String,
+    },
+    File {
+        path: String,
+    },
+}
+
 /// Connect to a Ceph cluster and return a connection handle rados_t
-pub fn connect_to_ceph(user_id: &str, config_file: &str) -> RadosResult<Rados> {
+pub fn connect_to_ceph(user_id: &str, config: ConnectionConfig) -> RadosResult<Rados> {
     let connect_id = CString::new(user_id)?;
-    let conf_file = CString::new(config_file)?;
     unsafe {
         let mut cluster_handle: rados_t = ptr::null_mut();
         let ret_code = rados_create(&mut cluster_handle, connect_id.as_ptr());
         if ret_code < 0 {
             return Err(ret_code.into());
         }
-        let ret_code = rados_conf_read_file(cluster_handle, conf_file.as_ptr());
-        if ret_code < 0 {
-            return Err(ret_code.into());
+        match config {
+            ConnectionConfig::Params {
+                fsid,
+                mon_hosts,
+                key,
+            } => {
+                let fsid_label = CString::new("fsid")?;
+                let fsid = CString::new(fsid.trim())?;
+                let ret_code = rados_conf_set(cluster_handle, fsid_label.as_ptr(), fsid.as_ptr());
+                if ret_code < 0 {
+                    return Err(ret_code.into());
+                }
+                let mon_host_label = CString::new("mon_host")?;
+                let mon_host = CString::new(mon_hosts.join(","))?;
+                let ret_code =
+                    rados_conf_set(cluster_handle, mon_host_label.as_ptr(), mon_host.as_ptr());
+                if ret_code < 0 {
+                    return Err(ret_code.into());
+                }
+                let key_label = CString::new("key")?;
+                let key = CString::new(key.trim())?;
+                let ret_code = rados_conf_set(cluster_handle, key_label.as_ptr(), key.as_ptr());
+                if ret_code < 0 {
+                    return Err(ret_code.into());
+                }
+                let auth_label = CString::new("auth_supported")?;
+                let auth = CString::new("cephx")?;
+                let ret_code = rados_conf_set(cluster_handle, auth_label.as_ptr(), auth.as_ptr());
+                if ret_code < 0 {
+                    return Err(ret_code.into());
+                }
+            }
+            ConnectionConfig::File { path } => {
+                let conf_file = CString::new(path)?;
+                let ret_code = rados_conf_read_file(cluster_handle, conf_file.as_ptr());
+                if ret_code < 0 {
+                    return Err(ret_code.into());
+                }
+            }
         }
         let ret_code = rados_connect(cluster_handle);
         if ret_code < 0 {
